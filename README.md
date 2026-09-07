@@ -97,3 +97,29 @@ Quotes are keyed by **symbol**. Your book is keyed by **user**. Ten thousand peo
 **Vendor:** [Yahoo Finance chart API](https://query1.finance.yahoo.com/v8/finance/chart/RELIANCE.NS?range=1mo&interval=1d) — delayed, unofficial, no key. Down → last cache → unavailable. Fixtures exist only behind `/?demo=1`.
 
 Indicative / delayed quotes. Not investment advice. Not a Groww product.
+
+## Deploying authentication to Vercel
+
+The deployed app needs a persistent Postgres database and its own Google OAuth
+credentials. In Vercel's Production environment, set these variables:
+
+```
+DATABASE_URL=postgres://...
+BETTER_AUTH_SECRET=<a long random secret>
+BETTER_AUTH_URL=https://your-production-domain.example
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=...
+VITE_AUTH_ENABLED=true
+```
+
+In Google Cloud Console, add this exact authorized redirect URI (substitute the
+same production domain used in `BETTER_AUTH_URL`):
+
+```
+https://your-production-domain.example/api/auth/callback/google
+```
+
+Also add `https://your-production-domain.example` as an authorized JavaScript
+origin. Do not use the Grok preview credentials on Vercel; they only authorize
+preview domains. Redeploy after adding the variables so the browser bundle
+receives `VITE_AUTH_ENABLED=true` and the migration creates the auth tables.

@@ -74,16 +74,27 @@ const env = (key: string): string | undefined => {
 // provisions auth; set it to "false" to force auth off everywhere (dev user).
 const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 
-// Broker federation creds: the deployer injects a per-app client when deployed;
-// otherwise fall back to the shared live-preview client, which the broker accepts
-// for any `*.grok-sandbox.com` callback (see `./preview`).
+// A normal Vercel deployment uses its own Google OAuth application. The old
+// broker fallback is preview-only: its callback allowlist deliberately accepts
+// `*.grok-sandbox.com`, not arbitrary `*.vercel.app` deployments.
+const googleClientId = env("GOOGLE_CLIENT_ID");
+const googleClientSecret = env("GOOGLE_CLIENT_SECRET");
+const googleConfigured = Boolean(googleClientId && googleClientSecret);
+const isVercelDeployment = Boolean(env("VERCEL"));
+
+// Broker federation creds remain available exclusively for the App Builder
+// preview, or for an explicit broker configuration. Never silently use preview
+// credentials on Vercel: that produces an invalid OAuth redirect URI.
+const explicitGrokClientId = env("GROK_AUTH_CLIENT_ID");
+const explicitGrokClientSecret = env("GROK_AUTH_CLIENT_SECRET");
+const usePreviewBroker = !isVercelDeployment && !explicitGrokClientId && !explicitGrokClientSecret;
 const grokIssuer = env("GROK_AUTH_ISSUER") ?? GROK_ISSUER_DEFAULT;
-const grokClientId = env("GROK_AUTH_CLIENT_ID") ?? PREVIEW_CLIENT_ID;
-const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET;
+const grokClientId = explicitGrokClientId ?? (usePreviewBroker ? PREVIEW_CLIENT_ID : undefined);
+const grokClientSecret = explicitGrokClientSecret ?? (usePreviewBroker ? PREVIEW_CLIENT_SECRET : undefined);
 
 /** True when federated sign-in is active (real auth is enforced). */
 export const authConfigured =
-  !authDisabled && Boolean(grokClientId && grokClientSecret);
+  !authDisabled && (googleConfigured || Boolean(grokClientId && grokClientSecret));
 
 // This app's own Better Auth origin. When deployed the deployer injects the
 // public URL. In the sandbox live preview there's no fixed URL (each preview gets
@@ -92,6 +103,12 @@ export const authConfigured =
 // preview allowlist, which makes the OAuth `redirect_uri` the concrete preview URL
 // the broker's preview client accepts.
 const explicitBaseURL = env("BETTER_AUTH_URL");
+// Vercel exposes a deployment host at runtime. Prefer BETTER_AUTH_URL (which
+// should be the canonical production domain), but this prevents Better Auth
+// from falling back to localhost if it was accidentally omitted.
+const vercelHost = env("VERCEL_PROJECT_PRODUCTION_URL") ?? env("VERCEL_URL");
+const vercelBaseURL = vercelHost ? `https://${vercelHost.replace(/^https?:\/\//, "")}` : undefined;
+const configuredBaseURL = explicitBaseURL ?? vercelBaseURL;
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -103,7 +120,7 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
-const baseURL = explicitBaseURL ?? {
+const baseURL = configuredBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
   // (not only the preview wildcard).
   allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
@@ -115,8 +132,8 @@ const baseURL = explicitBaseURL ?? {
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
+const trustedOrigins: string[] = configuredBaseURL
+  ? [configuredBaseURL, ...LOCAL_DEV_ORIGINS]
   : [
       // Host wildcards (matched against Origin's host)
       ...previewAllowedHosts,
@@ -150,7 +167,7 @@ export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
 // Built separately so the `betterAuth({...})` call stays easy to edit without
 // breaking brackets (models often trip on the conditional plugin spread).
-const grokOAuthPlugin = authConfigured
+const grokOAuthPlugin = authConfigured && Boolean(grokClientId && grokClientSecret)
   ? genericOAuth({
       config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
         providerId,
@@ -178,6 +195,21 @@ export const auth = betterAuth({
   // globalThis so HMR doesn't invalidate PGLite-backed sessions (see above).
   secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
   database,
+
+  // Native Google OAuth for self-hosted/Vercel deployments. Credentials remain
+  // server-only Vercel environment variables; nothing secret is bundled into
+  // the client.
+  ...(googleConfigured
+    ? {
+        socialProviders: {
+          google: {
+            clientId: googleClientId as string,
+            clientSecret: googleClientSecret as string,
+            prompt: "select_account",
+          },
+        },
+      }
+    : {}),
 
   // CSRF / origin check for credentialed auth POSTs (email sign-up/sign-in, …).
   // See `trustedOrigins` construction above — must cover live preview hosts AND

@@ -16,7 +16,7 @@
  * (`/api/auth/oauth2/callback/<providerId>`); `idp` is the hint the broker reads
  * to pick the upstream (Better Auth's id for X is still `twitter`).
  */
-export type GrokProvider = {
+export type AuthProvider = {
   /** This app's local provider id; also the callback path segment. */
   providerId: string;
   /** Upstream hint the broker forwards to (Better Auth social id). */
@@ -25,7 +25,13 @@ export type GrokProvider = {
   label: string;
 };
 
-export const GROK_PROVIDERS: readonly GrokProvider[] = [
-  { providerId: "grok-google", idp: "google", label: "Google" },
-  { providerId: "grok-x", idp: "twitter", label: "X" },
+/**
+ * Providers deliberately exposed by the product UI.
+ *
+ * Google is a native Better Auth provider, rather than the App Builder preview
+ * broker. That makes this project deployable to an ordinary Vercel account:
+ * its OAuth redirect remains on this app's own domain.
+ */
+export const GROK_PROVIDERS: readonly AuthProvider[] = [
+  { providerId: "google", idp: "google", label: "Google" },
 ];
