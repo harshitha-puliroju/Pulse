@@ -106,7 +106,7 @@ credentials. In Vercel's Production environment, set these variables:
 ```
 DATABASE_URL=postgres://...
 BETTER_AUTH_SECRET=<a long random secret>
-BETTER_AUTH_URL=https://your-production-domain.example
+BETTER_AUTH_URL=https://pulse-woad-kappa.vercel.app
 GOOGLE_CLIENT_ID=...apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=...
 VITE_AUTH_ENABLED=true
@@ -116,10 +116,10 @@ In Google Cloud Console, add this exact authorized redirect URI (substitute the
 same production domain used in `BETTER_AUTH_URL`):
 
 ```
-https://your-production-domain.example/api/auth/callback/google
+https://pulse-woad-kappa.vercel.app/api/auth/callback/google
 ```
 
-Also add `https://your-production-domain.example` as an authorized JavaScript
+Also add `https://pulse-woad-kappa.vercel.app` as an authorized JavaScript
 origin. Do not use the Grok preview credentials on Vercel; they only authorize
 preview domains. Redeploy after adding the variables so the browser bundle
 receives `VITE_AUTH_ENABLED=true` and the migration creates the auth tables.

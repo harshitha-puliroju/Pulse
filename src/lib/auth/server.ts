@@ -31,6 +31,8 @@ const explicitBaseURL = env("BETTER_AUTH_URL");
 const vercelHost = env("VERCEL_PROJECT_PRODUCTION_URL") ?? env("VERCEL_URL");
 const vercelBaseURL = vercelHost ? `https://${vercelHost.replace(/^https?:\/\//, "")}` : undefined;
 const configuredBaseURL = explicitBaseURL ?? vercelBaseURL;
+const DEPLOYED_ORIGINS = ["https://pulse-woad-kappa.vercel.app"];
+const deployedHosts = DEPLOYED_ORIGINS.map((origin) => new URL(origin).host);
 
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
 const LOCAL_DEV_ORIGINS: string[] = [
@@ -43,14 +45,15 @@ const LOCAL_DEV_ORIGINS: string[] = [
 ];
 
 const baseURL = configuredBaseURL ?? {
-  allowedHosts: [...previewAllowedHosts, "localhost", "192.168.50.77", "[::1]"],
+  allowedHosts: [...previewAllowedHosts, ...deployedHosts, "localhost", "192.168.50.77", "[::1]"],
   protocol: "auto" as const,
   fallback: "http://localhost:8083",
 };
 
 const trustedOrigins: string[] = configuredBaseURL
-  ? [configuredBaseURL, ...LOCAL_DEV_ORIGINS]
+  ? [configuredBaseURL, ...DEPLOYED_ORIGINS, ...LOCAL_DEV_ORIGINS]
   : [
+      ...DEPLOYED_ORIGINS,
       ...previewAllowedHosts,
       ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
       ...LOCAL_DEV_ORIGINS,
