@@ -1,5 +1,5 @@
 # Pulse
-
+https://pulse-woad-kappa.vercel.app/
 **Since you left.**
 
 A watchlist that only paints ±% versus yesterday is a ticker. Everyone sees the same board. The question that actually matters when you open the app after lunch is different:
