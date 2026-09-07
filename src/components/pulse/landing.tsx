@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { authClient, authEnabled } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -9,18 +9,24 @@ export function Landing({ pending }: { pending?: boolean }) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function emailAuth(mode: "in" | "up") {
+  async function emailAuth() {
     setBusy(true);
     setErr(null);
     try {
-      const name = email.split("@")[0] || "Pulse";
-      const res =
-        mode === "up"
-          ? await authClient.signUp.email({ email, password, name })
-          : await authClient.signIn.email({ email, password });
-      if (res.error) {
-        setErr(res.error.message || "Could not sign in");
+      if (email !== "test@gmail.com" || password !== "12345678") {
+        setErr("Invalid credentials. Please use the test account.");
+        setBusy(false);
         return;
+      }
+      const name = "Test User";
+      let signInRes = await authClient.signIn.email({ email, password });
+      
+      if (signInRes.error) {
+        const signUpRes = await authClient.signUp.email({ email, password, name });
+        if (signUpRes.error) {
+          setErr(signUpRes.error.message || "Could not sign in");
+          return;
+        }
       }
       window.location.assign("/");
     } catch (e) {
@@ -47,21 +53,13 @@ export function Landing({ pending }: { pending?: boolean }) {
         <div className="mt-10 space-y-3">
           {authEnabled ? (
             <>
-              {GROK_PROVIDERS.filter((p) => p.idp !== "twitter").map((p) => (
-                <button
-                  key={p.providerId}
-                  type="button"
-                  onClick={() => signIn(p.providerId, { callbackURL: "/" })}
-                  className="h-12 w-full rounded-xl border border-border bg-surface text-sm font-medium hover:bg-bg"
-                >
-                  Continue with {p.label}
-                </button>
-              ))}
-              <p className="pt-3 text-center text-xs text-subtle">Email</p>
+              <p className="pt-3 text-center text-xs text-subtle">
+                Demo User: test@gmail.com / 12345678
+              </p>
               <Input
                 type="email"
                 autoComplete="email"
-                placeholder="you@email.com"
+                placeholder="test@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -73,11 +71,8 @@ export function Landing({ pending }: { pending?: boolean }) {
                 onChange={(e) => setPassword(e.target.value)}
               />
               {err && <p className="text-sm text-down">{err}</p>}
-              <Button className="w-full" disabled={busy || !email || password.length < 8} onClick={() => void emailAuth("in")}>
+              <Button className="w-full" disabled={busy || !email || password.length < 8} onClick={() => void emailAuth()}>
                 Sign in
-              </Button>
-              <Button variant="outline" className="w-full" disabled={busy || !email || password.length < 8} onClick={() => void emailAuth("up")}>
-                Create account
               </Button>
             </>
           ) : (

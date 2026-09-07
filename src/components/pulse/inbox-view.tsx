@@ -17,8 +17,9 @@ import { HowRanking } from "./meaning";
 import { FreshnessBadge } from "./freshness-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, SlidersHorizontal } from "lucide-react";
+import { Activity, SlidersHorizontal, RefreshCw } from "lucide-react";
 import { formatIst } from "@/lib/pulse/clock";
+import { toast } from "sonner";
 
 export function InboxView({ listId, demo }: { listId?: string; demo?: boolean }) {
   const { user, isPending } = useCurrentUserState();
@@ -29,7 +30,7 @@ export function InboxView({ listId, demo }: { listId?: string; demo?: boolean })
   const [busy, setBusy] = useState(false);
   const [how, setHow] = useState(false);
 
-  async function reload(id?: string) {
+  async function reload(id?: string, notify = false) {
     try {
       const [box, wl] = await Promise.all([
         getInbox({ data: { listId: id ?? listId, live: !demo } }),
@@ -38,14 +39,19 @@ export function InboxView({ listId, demo }: { listId?: string; demo?: boolean })
       setInbox(box);
       setLists(wl);
       setError(null);
+      if (notify) toast.success("Watchlist refreshed");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load inbox");
+      const message = e instanceof Error ? e.message : "Could not load inbox";
+      setError(message);
+      if (notify) toast.error(message);
     }
   }
 
   useEffect(() => {
     if (isPending || !user) return;
     void reload();
+    const timer = setInterval(() => void reload(), 60000);
+    return () => clearInterval(timer);
   }, [isPending, user, listId]);
 
   if (isPending || (!inbox && !error)) {
@@ -133,14 +139,25 @@ export function InboxView({ listId, demo }: { listId?: string; demo?: boolean })
                 : "No look yet"}
             </p>
           </div>
-          <Link
-            to="/manage"
-            search={{ listId: inbox.listId }}
-            className="inline-flex size-11 items-center justify-center rounded-xl border border-border bg-surface"
-            aria-label="Manage list"
-          >
-            <SlidersHorizontal className="size-4" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void reload(undefined, true)}
+              disabled={busy}
+              className="inline-flex size-11 items-center justify-center rounded-xl border border-border bg-surface hover:bg-bg disabled:opacity-50"
+              aria-label="Refresh list"
+            >
+              <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
+            </button>
+            <Link
+              to="/manage"
+              search={{ listId: inbox.listId }}
+              className="inline-flex size-11 items-center justify-center rounded-xl border border-border bg-surface hover:bg-bg"
+              aria-label="Manage list"
+            >
+              <SlidersHorizontal className="size-4" />
+            </Link>
+          </div>
         </div>
 
         <p className="mt-5 text-pretty text-[17px] leading-snug">{inbox.headline}</p>

@@ -15,6 +15,7 @@ import { SYMBOL_MAP } from "@/lib/pulse/symbols";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 type Row = { symbol: string; note_price: string | number | null };
 
@@ -46,13 +47,18 @@ export function ManageView({ listId }: { listId?: string }) {
       setHits([]);
       return;
     }
-    void searchInstrument({ data: { q } }).then(setHits);
+    const timer = setTimeout(() => {
+      void searchInstrument({ data: { q } }).then(setHits);
+    }, 300);
+    return () => clearTimeout(timer);
   }, [q]);
 
   async function add(symbol: string) {
     if (!id) return;
     const res = await addItem({ data: { listId: id, symbol } });
     setMsg(res.ok ? `Added ${symbol}` : res.error ?? "Could not add");
+    if (res.ok) toast.success(`${symbol} added to your watchlist`);
+    else toast.error(res.error ?? "Could not add item");
     setQ("");
     setHits([]);
     await load(id);
@@ -62,6 +68,8 @@ export function ManageView({ listId }: { listId?: string }) {
     if (!id) return;
     const res = await bulkAdd({ data: { listId: id, text: paste } });
     setMsg(`Added ${res.added}${res.skipped.length ? `, skipped ${res.skipped.join(", ")}` : ""}`);
+    if (res.added) toast.success(`${res.added} item${res.added === 1 ? "" : "s"} added to your watchlist`);
+    else toast.info("No new items were added");
     setPaste("");
     await load(id);
   }

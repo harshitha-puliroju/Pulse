@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Pulse";
@@ -40,6 +41,7 @@ export const Route = createRootRoute({
         <AuthProvider>
           <Outlet />
         </AuthProvider>
+        <Toaster position="bottom-center" richColors closeButton />
         <Scripts />
       </body>
     </html>
